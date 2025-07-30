@@ -125,7 +125,7 @@ pub async fn get_library_runtime_code(
         code,
         r#"
             function factory () {{
-                return esmImport(null, Array.from(runtimeModules));
+                return esmImport(null);
             }};
 
             if (typeof exports === 'object' && typeof module === 'object') {{

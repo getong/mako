@@ -230,11 +230,21 @@ pub async fn get_utoopack_path(project_path: FileSystemPath) -> Result<Vc<FileSy
         Request::parse(Pattern::Constant(rcstr!("@utoo/pack/package.json"))),
         node_cjs_resolve_options(project_path.root().owned().await?),
     );
-    let source = result
-        .first_source()
+    let first_source = result.first_source().await?;
+    if let Some(source) = &*first_source {
+        return Ok(source.ident().path().await?.parent().cell());
+    }
+
+    // For Debug
+    let real_fs = project_path.fs();
+    let local_utoo_pack_path = real_fs
+        .root()
         .await?
-        .context("@utoo/pack package not found")?;
-    Ok(source.ident().path().await?.parent().cell())
+        .clone()
+        .join("/Users/zoomdong/mako/packages/pack")
+        .map_err(|_| anyhow::anyhow!("Failed to join path"))?;
+
+    Ok(local_utoo_pack_path.cell())
 }
 
 #[turbo_tasks::function]
@@ -242,34 +252,8 @@ pub async fn get_utoopack_dependency_package(
     project_path: FileSystemPath,
     dependency: RcStr,
 ) -> Result<Vc<RcStr>> {
-    let utoopack_path = get_utoopack_path(project_path.clone()).owned().await?;
-
-    let result = resolve(
-        utoopack_path.clone(),
-        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(
-            format!("{dependency}/package.json").into(),
-        )),
-        node_cjs_resolve_options(project_path.root().owned().await?),
-    );
-
-    let source = result
-        .first_source()
-        .await?
-        .context(format!("package {dependency} not found"))?;
-
-    let dependency_path_to_root = &source.ident().path().owned().await?;
-
-    Ok(Vc::cell(
-        dependency_path_to_root
-            .path
-            // This is a hack for special node_modules hosting like pnpm
-            // for example: require("node_modules/.pnpm/loader-runner@4.3.0/node_modules/loader-runner/lib/LoaderRunner.js") can't be resolve,
-            // but require(".pnpm/loader-runner@4.3.0/node_modules/loader-runner/lib/LoaderRunner.js)" can be
-            .replacen("node_modules/", "", 1)
-            .replace("/package.json", "")
-            .into(),
-    ))
+    let user_local_path = format!("/Users/zoomdong/mako/node_modules/{dependency}").into();
+    Ok(Vc::cell(user_local_path))
 }
 
 pub fn get_client_resolved_map(

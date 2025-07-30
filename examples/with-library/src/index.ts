@@ -1,7 +1,7 @@
-import _ from "lodash";
+// import _ from "lodash";
 import "./comp2";
 
-console.log(_);
+// console.log(_);
 
 const library = "library";
 
